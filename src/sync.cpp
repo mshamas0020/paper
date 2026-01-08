@@ -116,8 +116,8 @@ int sync_rtc_mem(const UserConfig& config)
     char tz[64] = {};
 
     if (use_time_zone) {
-        Serial.printf("SYNC    > Setting user time zone '%s'.\n", tz);
         strcpy(tz, config.time_zone);
+        Serial.printf("SYNC    > Setting user time zone '%s'.\n", tz);
     } else {
         if (rtc_mem_utc_dst_offset == UTC_DST_OFFSET_INVALID) {
             Serial.print("Error: Stored UTC offset is invalid\n");

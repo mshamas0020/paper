@@ -36,10 +36,14 @@ static bool get_time_zone_config_required()
 
 int user_config_init()
 {
-    if (!nvs.begin("paper")) {
+    static bool initialized = false;
+    
+    if (!initialized && !nvs.begin("paper")) {
         Serial.print("Error: NVS\n");
         return -1;
     }
+
+    initialized = true;
 
     nvs.getString(KEY_SSID, ssid_buf, sizeof(ssid_buf));
     nvs.getString(KEY_PASSWORD, password_buf, sizeof(password_buf));

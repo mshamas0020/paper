@@ -8,18 +8,16 @@
 
 #include <Arduino.h>
 
-    // time zones
-    // "PST8PDT,M3.2.0,M11.1.0", // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+#define PAPER_DEEP_SLEEP_DISABLE
 
 
 static constexpr int    SYNC_INTERVAL   = 24 * 3600;    // 24 hours
 static constexpr int    SYNC_DAILY_TIME = 2 * 60;       // 2 AM, minutes from midnight
 
+// rtc memory, preserved between boots
 RTC_DATA_ATTR int   boot_count                     = 0;
 RTC_DATA_ATTR int   boots_since_last_sync_attempt  = 0;
 RTC_DATA_ATTR bool  sync_failed                    = false;
-
-
 
 static bool get_sync_required(bool first_boot)
 {
@@ -28,10 +26,12 @@ static bool get_sync_required(bool first_boot)
         return true;
     }
 
+#ifndef PAPER_DEEP_SLEEP_DISABLE
     if (esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_TIMER) {
         Serial.print("MAIN    > Sync required: Unknown wakeup reason.\n");
         return true;
     }
+#endif // PAPER_DEEP_SLEEP_DISABLE
 
     if (!paper::get_time_valid()) {
         Serial.print("MAIN    > Sync required: Time invalid.\n");
@@ -64,10 +64,14 @@ static paper::DrawInfo make_draw_info(const struct tm& time_info, const paper::U
     };
 
     // time string
-    snprintf(time_str, sizeof(time_str), "%d:%02d", time_info.tm_hour % 12, time_info.tm_min);
+    const int hour = ((time_info.tm_hour + 11) % 12) + 1;
+    const int min = time_info.tm_min;
+    snprintf(time_str, sizeof(time_str), "%d:%02d", hour, min);
 
     // date string
-    snprintf(date_str, sizeof(date_str), "%s %d", months[time_info.tm_mon], (int) time_info.tm_mday);
+    const char* month = months[time_info.tm_mon];
+    const int day = time_info.tm_mday;
+    snprintf(date_str, sizeof(date_str), "%s %d", month, day);
 
     paper::DrawInfo draw_info;
     draw_info.enable_2bpp = user.grey_enabled;
@@ -181,16 +185,25 @@ void setup()
         
         Serial.printf("MAIN    > Sleeping (%d s).\n\n", s_until_boot);
         Serial.flush();
+        
+#ifdef PAPER_DEEP_SLEEP_DISABLE
+        delay(s_until_boot * 1000);
+#else // PAPER_DEEP_SLEEP_DISABLE
         esp_sleep_enable_timer_wakeup(s_until_boot * 1000000 /* us */);
         esp_deep_sleep_start();
         delay(1000);
+#endif // PAPER_DEEP_SLEEP_DISABLE
     }
 }
 
 void loop()
 {
+#ifdef PAPER_DEEP_SLEEP_DISABLE
+    setup();
+#else // PAPER_DEEP_SLEEP_DISABLE
     // should not reach here
 
     delay(2000);
     Serial.print("Unknown Fatal Error\n");
+#endif // PAPER_DEEP_SLEEP_DISABLE
 }
